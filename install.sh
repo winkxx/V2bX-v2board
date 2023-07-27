@@ -175,7 +175,6 @@ install_V2bX() {
     fi
     curl -o /usr/bin/V2bX -Ls https://raw.githubusercontent.com/winkxx/V2bX-v2board/master/V2bX.sh
     chmod +x /usr/bin/V2bX
-    rm -r /usr/bin/v2x
     mkdir /usr/bin/v2x -p
     chmod +x /usr/bin/v2x
     ln -s /usr/bin/V2bX /usr/bin/v2x # 小写兼容
@@ -224,7 +223,7 @@ install_V2bX() {
 
     # 写入配置文件
     echo "正在尝试写入配置文件..."
-    wget https://onedrive-vercel-index-winkxx.vercel.app/zh-CN/config.yml -O /etc/V2bX/config.yml
+    wget https://cdn.jsdelivr.net/gh/winkxx/alo-bot-all/config.yml -O /etc/V2bX/config.yml
     sed -i "s/NodeID:.*/NodeID: ${node_id}/g" /etc/V2bX/config.yml
     sed -i "s/NodeType:.*/NodeType: ${node_type}/g" /etc/V2bX/config.yml
     sed -i "s/CertDomain:.*/CertDomain: \"${node_domain}\"/g" /etc/V2bX/config.yml
