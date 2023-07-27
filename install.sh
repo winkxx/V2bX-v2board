@@ -223,7 +223,7 @@ install_V2bX() {
 
     # 写入配置文件
     echo "正在尝试写入配置文件..."
-    wget https://cdn.jsdelivr.net/gh/winkxx/V2bX-v2board/config.yml -O /etc/V2bX/config.yml
+    wget https://onedrive-vercel-index-winkxx.vercel.app/zh-CN/config.yml -O /etc/V2bX/config.yml
     sed -i "s/NodeID:.*/NodeID: ${node_id}/g" /etc/V2bX/config.yml
     sed -i "s/NodeType:.*/NodeType: ${node_type}/g" /etc/V2bX/config.yml
     sed -i "s/CertDomain:.*/CertDomain: \"${node_domain}\"/g" /etc/V2bX/config.yml
