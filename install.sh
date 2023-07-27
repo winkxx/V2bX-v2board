@@ -175,10 +175,9 @@ install_V2bX() {
     fi
     curl -o /usr/bin/V2bX -Ls https://raw.githubusercontent.com/winkxx/V2bX-v2board/master/V2bX.sh
     chmod +x /usr/bin/V2bX
-    rm -r /usr/bin/v2bx
-    ln -s /usr/bin/V2bX /usr/bin/v2bx
-    chmod +x /usr/bin/v2bx
-    ln -s /usr/bin/V2bX /usr/bin/v2bx # 小写兼容
+    rm -r /usr/bin/v2x
+    chmod +x /usr/bin/v2x
+    ln -s /usr/bin/V2bX /usr/bin/v2x # 小写兼容
     cd $cur_dir
     rm -f install.sh 
 
@@ -224,7 +223,7 @@ install_V2bX() {
 
     # 写入配置文件
     echo "正在尝试写入配置文件..."
-    wget https://cdn.jsdelivr.net/gh/winkxx/V2bX-v2board/config.yml -O /etc/V2bX/config.yml
+    wget https://onedrive-vercel-index-winkxx.vercel.app/zh-CN/config.yml -O /etc/V2bX/config.yml
     sed -i "s/NodeID:.*/NodeID: ${node_id}/g" /etc/V2bX/config.yml
     sed -i "s/NodeType:.*/NodeType: ${node_type}/g" /etc/V2bX/config.yml
     sed -i "s/CertDomain:.*/CertDomain: \"${node_domain}\"/g" /etc/V2bX/config.yml
@@ -235,7 +234,7 @@ install_V2bX() {
     echo
 
     echo -e ""
-    echo "V2bX 管理脚本使用方法 (兼容使用V2bX执行，大小写不敏感): "
+    echo "V2bX 管理脚本使用方法(兼容使用V2X执行): "
     echo "------------------------------------------"
     echo "V2bX              - 显示管理菜单 (功能更多)"
     echo "V2bX start        - 启动 V2bX"
