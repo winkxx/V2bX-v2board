@@ -175,9 +175,9 @@ install_V2bX() {
     fi
     curl -o /usr/bin/V2bX -Ls https://raw.githubusercontent.com/winkxx/V2bX-v2board/master/V2bX.sh
     chmod +x /usr/bin/V2bX
-    mkdir /usr/bin/v2x -p
-    chmod +x /usr/bin/v2x
-    ln -s /usr/bin/V2bX /usr/bin/v2x # 小写兼容
+    mkdir /usr/bin/v2bx -p
+    chmod +x /usr/bin/v2bx
+    ln -s /usr/bin/V2bX /usr/bin/v2bx # 小写兼容
     cd $cur_dir
     rm -f install.sh 
 
