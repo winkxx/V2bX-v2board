@@ -210,9 +210,12 @@ generate_config_file() {
     
     while true; do
         if [ "$first_node" = true ]; then
-            read -rp "请输入机场网址：" ApiHost
-            read -rp "请输入面板对接API Key：" ApiKey
-            read -rp "是否设置固定的机场网址和API Key？(y/n)" fixed_api
+            #read -rp "请输入机场网址：" ApiHost
+            ApiHost=http://v2.winkxr.de
+            ApiKey=winkxxr991211xxrwink
+            fixed_api=y
+            #read -rp "请输入面板对接API Key：" ApiKey
+            #read -rp "是否设置固定的机场网址和API Key？(y/n)" fixed_api
             if [ "$fixed_api" = "y" ] || [ "$fixed_api" = "Y" ]; then
                 fixed_api_info=true
                 echo -e "${red}成功固定地址${plain}"
