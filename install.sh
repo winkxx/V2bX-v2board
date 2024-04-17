@@ -185,7 +185,6 @@ install_V2bX() {
     ln -s /usr/bin/V2bX /usr/bin/v2bx
     chmod +x /usr/bin/v2bx
     ln -s /usr/bin/V2bX /usr/bin/v2bx
-    fi
     cd $cur_dir
     rm -f install.sh
     echo -e ""
