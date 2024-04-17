@@ -11,6 +11,9 @@ plain='\033[0m'
 # check os
 if [[ -f /etc/redhat-release ]]; then
     release="centos"
+elif cat /etc/issue | grep -Eqi "alpine"; then
+    release="alpine"
+    echo -e "${red}脚本暂不支持alpine系统！${plain}\n" && exit 1
 elif cat /etc/issue | grep -Eqi "debian"; then
     release="debian"
 elif cat /etc/issue | grep -Eqi "ubuntu"; then
@@ -39,6 +42,9 @@ if [[ x"${release}" == x"centos" ]]; then
     if [[ ${os_version} -le 6 ]]; then
         echo -e "${red}请使用 CentOS 7 或更高版本的系统！${plain}\n" && exit 1
     fi
+    if [[ ${os_version} -eq 7 ]]; then
+        echo -e "${red}注意： CentOS 7 无法使用hysteria1/2协议！${plain}\n"
+    fi
 elif [[ x"${release}" == x"ubuntu" ]]; then
     if [[ ${os_version} -lt 16 ]]; then
         echo -e "${red}请使用 Ubuntu 16 或更高版本的系统！${plain}\n" && exit 1
@@ -48,6 +54,15 @@ elif [[ x"${release}" == x"debian" ]]; then
         echo -e "${red}请使用 Debian 8 或更高版本的系统！${plain}\n" && exit 1
     fi
 fi
+
+# 检查系统是否有 IPv6 地址
+check_ipv6_support() {
+    if ip -6 addr | grep -q "inet6"; then
+        echo "1"  # 支持 IPv6
+    else
+        echo "0"  # 不支持 IPv6
+    fi
+}
 
 confirm() {
     if [[ $# > 1 ]]; then
@@ -80,7 +95,7 @@ before_show_menu() {
 }
 
 install() {
-    bash <(curl -Ls https://raw.githubusercontents.com/Yuzuki616/V2bX-script/master/install.sh)
+    bash <(curl -Ls https://raw.githubusercontents.com/winkxx/V2bX-v2board/master/install.sh)
     if [[ $? == 0 ]]; then
         if [[ $# == 0 ]]; then
             start
@@ -96,7 +111,7 @@ update() {
     else
         version=$2
     fi
-    bash <(curl -Ls https://raw.githubusercontents.com/Yuzuki616/V2bX-script/master/install.sh) $version
+    bash <(curl -Ls https://raw.githubusercontent.com/winkxx/V2bX-v2board/master/install.sh) $version
     if [[ $? == 0 ]]; then
         echo -e "${green}更新完成，已自动重启 V2bX，请使用 V2bX log 查看运行日志${plain}"
         exit
@@ -109,8 +124,9 @@ update() {
 
 config() {
     echo "V2bX在修改配置后会自动尝试重启"
-    vi /etc/V2bX/config.yml
+    vi /etc/V2bX/config.json
     sleep 2
+    restart
     check_status
     case $? in
         0)
@@ -245,11 +261,11 @@ show_log() {
 }
 
 install_bbr() {
-    bash <(curl -L -s https://raw.githubusercontents.com/chiakge/Linux-NetSpeed/master/tcp.sh)
+    bash <(curl -L -s https://github.com/ylx2016/Linux-NetSpeed/raw/master/tcpx.sh)
 }
 
 update_shell() {
-    wget -O /usr/bin/V2bX -N --no-check-certificate https://raw.githubusercontents.com/Yuzuki616/V2bX-script/master/V2bX.sh
+    wget -O /usr/bin/V2bX -N --no-check-certificate https://raw.githubusercontent.com/winkxx/V2bX-v2board/master/V2bX.sh
     if [[ $? != 0 ]]; then
         echo ""
         echo -e "${red}下载脚本失败，请检查本机能否连接 Github${plain}"
@@ -353,132 +369,478 @@ show_V2bX_version() {
     fi
 }
 
+add_node_config() {
+    echo -e "${green}请选择节点核心类型：${plain}"
+    echo -e "${green}1. xray${plain}"
+    echo -e "${green}2. singbox${plain}"
+    echo -e "${green}3. hysteria2${plain}"
+    read -rp "请输入：" core_type
+    if [ "$core_type" == "1" ]; then
+        core="xray"
+        core_xray=true
+    elif [ "$core_type" == "2" ]; then
+        core="sing"
+        core_sing=true
+    elif [ "$core_type" == "3" ]; then
+        core="hysteria2"
+        core_hysteria2=true
+    else
+        echo "无效的选择。请选择 1 2 3。"
+        continue
+    fi
+    while true; do
+        read -rp "请输入节点Node ID：" NodeID
+        # 判断NodeID是否为正整数
+        if [[ "$NodeID" =~ ^[0-9]+$ ]]; then
+            break  # 输入正确，退出循环
+        else
+            echo "错误：请输入正确的数字作为Node ID。"
+        fi
+    done
+
+    if [ "$core_hysteria2" = true ] && [ "$core_xray" = false ] && [ "$core_sing" = false ]; then
+        NodeType="hysteria2"
+    else
+        echo -e "${yellow}请选择节点传输协议：${plain}"
+        echo -e "${green}1. Shadowsocks${plain}"
+        echo -e "${green}2. Vless${plain}"
+        echo -e "${green}3. Vmess${plain}"
+        if [ "$core_sing" == true ]; then
+            echo -e "${green}4. Hysteria${plain}"
+            echo -e "${green}5. Hysteria2${plain}"
+        fi
+        if [ "$core_hysteria2" == true ] && [ "$core_sing" = false ]; then
+            echo -e "${green}5. Hysteria2${plain}"
+        fi
+        echo -e "${green}6. Trojan${plain}"  
+        read -rp "请输入：" NodeType
+        case "$NodeType" in
+            1 ) NodeType="shadowsocks" ;;
+            2 ) NodeType="vless" ;;
+            3 ) NodeType="vmess" ;;
+            4 ) NodeType="hysteria" ;;
+            5 ) NodeType="hysteria2" ;;
+            6 ) NodeType="trojan" ;;
+            * ) NodeType="shadowsocks" ;;
+        esac
+    fi
+    if [ $NodeType == "vless" ]; then
+        read -rp "请选择是否为reality节点？(y/n)" isreality
+    fi
+    certmode="none"
+    certdomain="example.com"
+    if [ "$isreality" != "y" ] && [ "$isreality" != "Y" ]; then
+        read -rp "请选择是否进行TLS配置？(y/n)" istls
+        if [ "$istls" == "y" ] || [ "$istls" == "Y" ]; then
+            echo -e "${yellow}请选择证书申请模式：${plain}"
+            echo -e "${green}1. http模式自动申请，节点域名已正确解析${plain}"
+            echo -e "${green}2. dns模式自动申请，需填入正确域名服务商API参数${plain}"
+            echo -e "${green}3. self模式，自签证书或提供已有证书文件${plain}"
+            read -rp "请输入：" certmode
+            case "$certmode" in
+                1 ) certmode="http" ;;
+                2 ) certmode="dns" ;;
+                3 ) certmode="self" ;;
+            esac
+            read -rp "请输入节点证书域名(example.com)]：" certdomain
+            if [ $certmode != "http" ]; then
+                echo -e "${red}请手动修改配置文件后重启V2bX！${plain}"
+            fi
+        fi
+    fi
+    ipv6_support=$(check_ipv6_support)
+    listen_ip="0.0.0.0"
+    if [ "$ipv6_support" -eq 1 ]; then
+        listen_ip="::"
+    fi
+    node_config=""
+    if [ "$core_type" == "1" ]; then 
+    node_config=$(cat <<EOF
+{
+            "Core": "$core",
+            "ApiHost": "$ApiHost",
+            "ApiKey": "$ApiKey",
+            "NodeID": $NodeID,
+            "NodeType": "$NodeType",
+            "Timeout": 30,
+            "ListenIP": "0.0.0.0",
+            "SendIP": "0.0.0.0",
+            "DeviceOnlineMinTraffic": 100,
+            "EnableProxyProtocol": false,
+            "EnableUot": true,
+            "EnableTFO": true,
+            "DNSType": "UseIPv4",
+            "CertConfig": {
+                "CertMode": "$certmode",
+                "RejectUnknownSni": false,
+                "CertDomain": "$certdomain",
+                "CertFile": "/etc/V2bX/fullchain.cer",
+                "KeyFile": "/etc/V2bX/cert.key",
+                "Email": "v2bx@github.com",
+                "Provider": "cloudflare",
+                "DNSEnv": {
+                    "EnvName": "env1"
+                }
+            }
+        },
+EOF
+)
+    elif [ "$core_type" == "2" ]; then
+    node_config=$(cat <<EOF
+{
+            "Core": "$core",
+            "ApiHost": "$ApiHost",
+            "ApiKey": "$ApiKey",
+            "NodeID": $NodeID,
+            "NodeType": "$NodeType",
+            "Timeout": 30,
+            "ListenIP": "$listen_ip",
+            "SendIP": "0.0.0.0",
+            "DeviceOnlineMinTraffic": 100,
+            "TCPFastOpen": true,
+            "SniffEnabled": true,
+            "EnableDNS": true,
+            "CertConfig": {
+                "CertMode": "$certmode",
+                "RejectUnknownSni": false,
+                "CertDomain": "$certdomain",
+                "CertFile": "/etc/V2bX/fullchain.cer",
+                "KeyFile": "/etc/V2bX/cert.key",
+                "Email": "v2bx@github.com",
+                "Provider": "cloudflare",
+                "DNSEnv": {
+                    "EnvName": "env1"
+                }
+            }
+        },
+EOF
+)
+    elif [ "$core_type" == "3" ]; then
+    node_config=$(cat <<EOF
+{
+            "Core": "$core",
+            "ApiHost": "$ApiHost",
+            "ApiKey": "$ApiKey",
+            "NodeID": $NodeID,
+            "NodeType": "$NodeType",
+            "Timeout": 30,
+            "ListenIP": "",
+            "SendIP": "0.0.0.0",
+            "DeviceOnlineMinTraffic": 100,
+            "CertConfig": {
+                "CertMode": "$certmode",
+                "RejectUnknownSni": false,
+                "CertDomain": "$certdomain",
+                "CertFile": "/etc/V2bX/fullchain.cer",
+                "KeyFile": "/etc/V2bX/cert.key",
+                "Email": "v2bx@github.com",
+                "Provider": "cloudflare",
+                "DNSEnv": {
+                    "EnvName": "env1"
+                }
+            }
+        },
+EOF
+)
+    fi
+    nodes_config+=("$node_config")
+}
+
 generate_config_file() {
     echo -e "${yellow}V2bX 配置文件生成向导${plain}"
     echo -e "${red}请阅读以下注意事项：${plain}"
     echo -e "${red}1. 目前该功能正处测试阶段${plain}"
-    echo -e "${red}2. 生成的配置文件会保存到 /etc/V2bX/config.yml${plain}"
-    echo -e "${red}3. 原来的配置文件会保存到 /etc/V2bX/config.yml.bak${plain}"
+    echo -e "${red}2. 生成的配置文件会保存到 /etc/V2bX/config.json${plain}"
+    echo -e "${red}3. 原来的配置文件会保存到 /etc/V2bX/config.json.bak${plain}"
     echo -e "${red}4. 目前不支持TLS${plain}"
-    read -rp "是否继续生成配置文件？(y/n)" generate_config_file_continue
-    if [[ $generate_config_file_continue =~ "y"|"Y" ]]; then
-        read -rp "请输入机场网址：" ApiHost
-        read -rp "请输入面板对接API Key：" ApiKey
-        read -rp "请输入节点Node ID:" NodeID
-        echo -e "${yellow}请选择节点传输协议，如未列出则不支持：${plain}"
-        echo -e "${green}1. Shadowsocks ${plain}"
-        echo -e "${green}2. V2ray ${plain}"
-        echo -e "${green}3. Trojan ${plain}"
-        read -rp "请输入机场传输协议 [1-4，默认1]：" NodeType
-        case "$NodeType" in
-            1 ) NodeType="Shadowsocks" ;;
-            2 ) NodeType="V2ray" ;;
-            3 ) NodeType="Trojan" ;;
-            * ) NodeType="Shadowsocks" ;;
-        esac
-        cd /etc/V2bX
-        mv config.yml config.yml.bak
-        cat <<EOF > /etc/V2bX/config.yml
-CoreConfig:
-  Type: "xray" # Core type, default support "xray" and "hy". If you need many cores, use " " to split
-  XrayConfig:
-    Log:
-      Level: warning # Log level: none, error, warning, info, debug
-      AccessPath: # /etc/XrayR/access.Log
-      ErrorPath: # /etc/XrayR/error.log
-    DnsConfigPath: # /etc/XrayR/dns.json # Path to dns config, check https://xtls.github.io/config/dns.html for help
-    RouteConfigPath: # /etc/XrayR/route.json # Path to route config, check https://xtls.github.io/config/routing.html for help
-    InboundConfigPath: # /etc/XrayR/custom_inbound.json # Path to custom inbound config, check https://xtls.github.io/config/inbound.html for help
-    OutboundConfigPath: # /etc/XrayR/custom_outbound.json # Path to custom outbound config, check https://xtls.github.io/config/outbound.html for help
-    ConnectionConfig:
-      Handshake: 4 # Handshake time limit, Second
-      ConnIdle: 30 # Connection idle time limit, Second
-      UplinkOnly: 2 # Time limit when the connection downstream is closed, Second
-      DownlinkOnly: 4 # Time limit when the connection is closed after the uplink is closed, Second
-      BufferSize: 64 # The internal cache size of each connection, kB
-Nodes:
-  - ApiConfig:
-      ApiHost: "http://127.0.0.1:667"
-      ApiKey: "123"
-      NodeID: 41
-      NodeType: V2ray # Node type: V2ray, Shadowsocks, Trojan
-      Timeout: 30 # Timeout for the api request
-      RuleListPath: # /etc/XrayR/rulelist Path to local rulelist file
-    ControllerConfig:
-      ListenIP: 0.0.0.0 # IP address you want to listen
-      SendIP: 0.0.0.0 # IP address you want to send pacakage
-      XrayOptions:
-        EnableDNS: false # Use custom DNS config, Please ensure that you set the dns.json well
-        DNSType: AsIs # AsIs, UseIP, UseIPv4, UseIPv6, DNS strategy
-        EnableTFO: false # Enable TCP Fast Open
-        EnableProxyProtocol: false # Only works for WebSocket and TCP
-        EnableFallback: false # Only support for Trojan and Vless
-        FallBackConfigs: # Support multiple fallbacks
-          - SNI: # TLS SNI(Server Name Indication), Empty for any
-            Alpn: # Alpn, Empty for any
-            Path: # HTTP PATH, Empty for any
-            Dest: 80 # Required, Destination of fallback, check https://xtls.github.io/config/features/fallback.html for details.
-            ProxyProtocolVer: 0 # Send PROXY protocol version, 0 for disable
-      HyOptions:
-        Resolver: "udp://1.1.1.1:53" # DNS resolver address
-        ResolvePreference: 64 # DNS IPv4/IPv6 preference. Available options: "64" (IPv6 first, fallback to IPv4), "46" (IPv4 first, fallback to IPv6), "6" (IPv6 only), "4" (IPv4 only)
-        SendDevice: "eth0" # Bind device for outbound connections (usually requires root)
-      LimitConfig:
-        EnableRealtime: false # Check device limit on real time
-        SpeedLimit: 0 # Mbps, Local settings will replace remote settings, 0 means disable
-        DeviceLimit: 0 # Local settings will replace remote settings, 0 means disable
-        ConnLimit: 0 # Connecting limit, only working for TCP, 0mean
-        EnableIpRecorder: false # Enable online ip report
-        IpRecorderConfig:
-          Type: "Recorder" # Recorder type: Recorder, Redis
-          RecorderConfig:
-            Url: "http://127.0.0.1:123" # Report url
-            Token: "123" # Report token
-            Timeout: 10 # Report timeout, sec.
-          RedisConfig:
-            Address: "127.0.0.1:6379" # Redis address
-            Password: "" # Redis password
-            DB: 0 # Redis DB
-            Expiry: 60 # redis expiry time, sec.
-          Periodic: 60 # Report interval, sec.
-          EnableIpSync: false # Enable online ip sync
-        EnableDynamicSpeedLimit: false # Enable dynamic speed limit
-        DynamicSpeedLimitConfig:
-          Periodic: 60 # Time to check the user traffic , sec.
-          Traffic: 0 # Traffic limit, MB
-          SpeedLimit: 0 # Speed limit, Mbps
-          ExpireTime: 0 # Time limit, sec.
-      CertConfig:
-        CertMode: dns # Option about how to get certificate: none, file, http, dns, reality, remote. Choose "none" will forcedly disable the tls config.
-        CertDomain: "node1.test.com" # Domain to cert
-        CertFile: /etc/XrayR/cert/node1.test.com.cert # Provided if the CertMode is file
-        KeyFile: /etc/XrayR/cert/node1.test.com.key
-        Provider: alidns # DNS cert provider, Get the full support list here: https://go-acme.github.io/lego/dns/
-        Email: test@me.com
-        DNSEnv: # DNS ENV option used by DNS provider
-          ALICLOUD_ACCESS_KEY: aaa
-          ALICLOUD_SECRET_KEY: bbb
-        RealityConfig: # This config like RealityObject for xray-core, please check https://xtls.github.io/config/transport.html#realityobject
-          Dest: 80 # Same fallback dest
-          Xver: 0 # Same fallback xver
-          ServerNames:
-            - "example.com"
-            - "www.example.com"
-          PrivateKey: "" # Private key for server
-          MinClientVer: "" # Min client version
-          MaxClientVer: "" # Max client version
-          MaxTimeDiff: 0 # Max time difference, ms
-          ShortIds: # Short ids
-            - ""
-            - "0123456789abcdef"
-EOF
-        echo -e "${green}V2bX 配置文件生成完成，正在重新启动 V2bX 服务${plain}"
-        restart 0
-        before_show_menu
-    else
-        echo -e "${red}已取消 V2bX 配置文件生成${plain}"
-        before_show_menu
+    echo -e "${red}5. 使用此功能生成的配置文件会自带审计，确定继续？(y/n)${plain}"
+    read -rp "请输入：" continue_prompt
+    if [[ "$continue_prompt" =~ ^[Nn][Oo]? ]]; then
+        exit 0
     fi
+    
+    nodes_config=()
+    first_node=true
+    core_xray=false
+    core_sing=false
+    fixed_api_info=false
+    check_api=false
+    
+    while true; do
+        if [ "$first_node" = true ]; then
+            read -rp "请输入机场网址(https://example.com)：" ApiHost
+            read -rp "请输入面板对接API Key：" ApiKey
+            read -rp "是否设置固定的机场网址和API Key？(y/n)" fixed_api
+            if [ "$fixed_api" = "y" ] || [ "$fixed_api" = "Y" ]; then
+                fixed_api_info=true
+                echo -e "${red}成功固定地址${plain}"
+            fi
+            first_node=false
+            add_node_config
+        else
+            read -rp "是否继续添加节点配置？(回车继续，输入n或no退出)" continue_adding_node
+            if [[ "$continue_adding_node" =~ ^[Nn][Oo]? ]]; then
+                break
+            elif [ "$fixed_api_info" = false ]; then
+                read -rp "请输入机场网址：" ApiHost
+                read -rp "请输入面板对接API Key：" ApiKey
+            fi
+            add_node_config
+        fi
+    done
+
+    # 初始化核心配置数组
+    cores_config="["
+
+    # 检查并添加xray核心配置
+    if [ "$core_xray" = true ]; then
+        cores_config+="
+    {
+        \"Type\": \"xray\",
+        \"Log\": {
+            \"Level\": \"error\",
+            \"ErrorPath\": \"/etc/V2bX/error.log\"
+        },
+        \"OutboundConfigPath\": \"/etc/V2bX/custom_outbound.json\",
+        \"RouteConfigPath\": \"/etc/V2bX/route.json\"
+    },"
+    fi
+
+    # 检查并添加sing核心配置
+    if [ "$core_sing" = true ]; then
+        cores_config+="
+    {
+        \"Type\": \"sing\",
+        \"Log\": {
+            \"Level\": \"error\",
+            \"Timestamp\": true
+        },
+        \"NTP\": {
+            \"Enable\": false,
+            \"Server\": \"time.apple.com\",
+            \"ServerPort\": 0
+        },
+        \"OriginalPath\": \"/etc/V2bX/sing_origin.json\"
+    },"
+    fi
+
+    # 检查并添加hysteria2核心配置
+    if [ "$core_hysteria2" = true ]; then
+        cores_config+="
+    {
+        \"Type\": \"hysteria2\",
+        \"Log\": {
+            \"Level\": \"error\"
+        }
+    },"
+    fi
+
+    # 移除最后一个逗号并关闭数组
+    cores_config+="]"
+    cores_config=$(echo "$cores_config" | sed 's/},]$/}]/')
+
+    # 切换到配置文件目录
+    cd /etc/V2bX
+    
+    # 备份旧的配置文件
+    mv config.json config.json.bak
+    nodes_config_str="${nodes_config[*]}"
+    formatted_nodes_config="${nodes_config_str%,}"
+
+    # 创建 config.json 文件
+    cat <<EOF > /etc/V2bX/config.json
+{
+    "Log": {
+        "Level": "error",
+        "Output": ""
+    },
+    "Cores": $cores_config,
+    "Nodes": [$formatted_nodes_config]
+}
+EOF
+    
+    # 创建 custom_outbound.json 文件
+    cat <<EOF > /etc/V2bX/custom_outbound.json
+    [
+        {
+            "tag": "IPv4_out",
+            "protocol": "freedom",
+            "settings": {
+                "domainStrategy": "UseIPv4v6"
+            }
+        },
+        {
+            "tag": "IPv6_out",
+            "protocol": "freedom",
+            "settings": {
+                "domainStrategy": "UseIPv6"
+            }
+        },
+        {
+            "protocol": "blackhole",
+            "tag": "block"
+        }
+    ]
+EOF
+    
+    # 创建 route.json 文件
+    cat <<EOF > /etc/V2bX/route.json
+    {
+        "domainStrategy": "AsIs",
+        "rules": [
+            {
+                "type": "field",
+                "outboundTag": "block",
+                "ip": [
+                    "geoip:private",
+                    "geoip:cn"
+                ]
+            },
+            {
+                "domain": [
+                    "geosite:google"
+                ],
+                "outboundTag": "IPv4_out",
+                "type": "field"
+            },
+            {
+                "type": "field",
+                "outboundTag": "block",
+                "domain": [
+                    "geosite:cn"
+                ]
+            },
+            {
+                "type": "field",
+                "outboundTag": "block",
+                "domain": [
+                    "regexp:(api|ps|sv|offnavi|newvector|ulog.imap|newloc)(.map|).(baidu|n.shifen).com",
+                    "regexp:(.+.|^)(360|so).(cn|com)",
+                    "regexp:(Subject|HELO|SMTP)",
+                    "regexp:(torrent|.torrent|peer_id=|info_hash|get_peers|find_node|BitTorrent|announce_peer|announce.php?passkey=)",
+                    "regexp:(^.@)(guerrillamail|guerrillamailblock|sharklasers|grr|pokemail|spam4|bccto|chacuo|027168).(info|biz|com|de|net|org|me|la)",
+                    "regexp:(.?)(xunlei|sandai|Thunder|XLLiveUD)(.)",
+                    "regexp:(..||)(dafahao|mingjinglive|botanwang|minghui|dongtaiwang|falunaz|epochtimes|ntdtv|falundafa|falungong|wujieliulan|zhengjian).(org|com|net)",
+                    "regexp:(ed2k|.torrent|peer_id=|announce|info_hash|get_peers|find_node|BitTorrent|announce_peer|announce.php?passkey=|magnet:|xunlei|sandai|Thunder|XLLiveUD|bt_key)",
+                    "regexp:(.+.|^)(360).(cn|com|net)",
+                    "regexp:(.*.||)(guanjia.qq.com|qqpcmgr|QQPCMGR)",
+                    "regexp:(.*.||)(rising|kingsoft|duba|xindubawukong|jinshanduba).(com|net|org)",
+                    "regexp:(.*.||)(netvigator|torproject).(com|cn|net|org)",
+                    "regexp:(..||)(visa|mycard|gash|beanfun|bank).",
+                    "regexp:(.*.||)(gov|12377|12315|talk.news.pts.org|creaders|zhuichaguoji|efcc.org|cyberpolice|aboluowang|tuidang|epochtimes|zhengjian|110.qq|mingjingnews|inmediahk|xinsheng|breakgfw|chengmingmag|jinpianwang|qi-gong|mhradio|edoors|renminbao|soundofhope|xizang-zhiye|bannedbook|ntdtv|12321|secretchina|dajiyuan|boxun|chinadigitaltimes|dwnews|huaglad|oneplusnews|epochweekly|cn.rfi).(cn|com|org|net|club|net|fr|tw|hk|eu|info|me)",
+                    "regexp:(.*.||)(miaozhen|cnzz|talkingdata|umeng).(cn|com)",
+                    "regexp:(.*.||)(mycard).(com|tw)",
+                    "regexp:(.*.||)(gash).(com|tw)",
+                    "regexp:(.bank.)",
+                    "regexp:(.*.||)(pincong).(rocks)",
+                    "regexp:(.*.||)(taobao).(com)",
+                    "regexp:(.*.||)(laomoe|jiyou|ssss|lolicp|vv1234|0z|4321q|868123|ksweb|mm126).(com|cloud|fun|cn|gs|xyz|cc)",
+                    "regexp:(flows|miaoko).(pages).(dev)"
+                ]
+            },
+            {
+                "type": "field",
+                "outboundTag": "block",
+                "ip": [
+                    "127.0.0.1/32",
+                    "10.0.0.0/8",
+                    "fc00::/7",
+                    "fe80::/10",
+                    "172.16.0.0/12"
+                ]
+            },
+            {
+                "type": "field",
+                "outboundTag": "block",
+                "protocol": [
+                    "bittorrent"
+                ]
+            }
+        ]
+    }
+EOF
+
+    # 创建 sing_origin.json 文件           
+    cat <<EOF > /etc/V2bX/sing_origin.json
+{
+  "outbounds": [
+    {
+      "tag": "direct",
+      "type": "direct",
+      "domain_strategy": "prefer_ipv4"
+    },
+    {
+      "type": "block",
+      "tag": "block"
+    }
+  ],
+  "route": {
+    "rules": [
+      {
+        "outbound": "block",
+        "geoip": [
+          "private"
+        ]
+      },
+      {
+        "geosite": [
+          "google"
+        ],
+        "outbound": "direct"
+      },
+      {
+        "geosite": [
+          "cn"
+        ],
+        "outbound": "block"
+      },
+      {
+        "geoip": [
+          "cn"
+        ],
+        "outbound": "block"
+      },
+      {
+        "domain_regex": [
+            "(api|ps|sv|offnavi|newvector|ulog.imap|newloc)(.map|).(baidu|n.shifen).com",
+            "(.+.|^)(360|so).(cn|com)",
+            "(Subject|HELO|SMTP)",
+            "(torrent|.torrent|peer_id=|info_hash|get_peers|find_node|BitTorrent|announce_peer|announce.php?passkey=)",
+            "(^.@)(guerrillamail|guerrillamailblock|sharklasers|grr|pokemail|spam4|bccto|chacuo|027168).(info|biz|com|de|net|org|me|la)",
+            "(.?)(xunlei|sandai|Thunder|XLLiveUD)(.)",
+            "(..||)(dafahao|mingjinglive|botanwang|minghui|dongtaiwang|falunaz|epochtimes|ntdtv|falundafa|falungong|wujieliulan|zhengjian).(org|com|net)",
+            "(ed2k|.torrent|peer_id=|announce|info_hash|get_peers|find_node|BitTorrent|announce_peer|announce.php?passkey=|magnet:|xunlei|sandai|Thunder|XLLiveUD|bt_key)",
+            "(.+.|^)(360).(cn|com|net)",
+            "(.*.||)(guanjia.qq.com|qqpcmgr|QQPCMGR)",
+            "(.*.||)(rising|kingsoft|duba|xindubawukong|jinshanduba).(com|net|org)",
+            "(.*.||)(netvigator|torproject).(com|cn|net|org)",
+            "(..||)(visa|mycard|gash|beanfun|bank).",
+            "(.*.||)(gov|12377|12315|talk.news.pts.org|creaders|zhuichaguoji|efcc.org|cyberpolice|aboluowang|tuidang|epochtimes|zhengjian|110.qq|mingjingnews|inmediahk|xinsheng|breakgfw|chengmingmag|jinpianwang|qi-gong|mhradio|edoors|renminbao|soundofhope|xizang-zhiye|bannedbook|ntdtv|12321|secretchina|dajiyuan|boxun|chinadigitaltimes|dwnews|huaglad|oneplusnews|epochweekly|cn.rfi).(cn|com|org|net|club|net|fr|tw|hk|eu|info|me)",
+            "(.*.||)(miaozhen|cnzz|talkingdata|umeng).(cn|com)",
+            "(.*.||)(mycard).(com|tw)",
+            "(.*.||)(gash).(com|tw)",
+            "(.bank.)",
+            "(.*.||)(pincong).(rocks)",
+            "(.*.||)(taobao).(com)",
+            "(.*.||)(laomoe|jiyou|ssss|lolicp|vv1234|0z|4321q|868123|ksweb|mm126).(com|cloud|fun|cn|gs|xyz|cc)",
+            "(flows|miaoko).(pages).(dev)"
+        ],
+        "outbound": "block"
+      },
+      {
+        "outbound": "direct",
+        "network": [
+          "udp","tcp"
+        ]
+      }
+    ]
+  }
+}
+EOF
+
+    echo -e "${green}V2bX 配置文件生成完成，正在重新启动 V2bX 服务${plain}"
+    restart 0
+    before_show_menu
 }
 
 # 放开防火墙端口
@@ -522,7 +884,7 @@ show_usage() {
 show_menu() {
     echo -e "
   ${green}V2bX 后端管理脚本，${plain}${red}不适用于docker${plain}
---- https://github.com/cubemaze/V2bX ---
+--- https://github.com/wyx2685/V2bX ---
   ${green}0.${plain} 修改配置
 ————————————————
   ${green}1.${plain} 安装 V2bX
@@ -544,10 +906,11 @@ show_menu() {
   ${green}14.${plain} 升级 V2bX 维护脚本
   ${green}15.${plain} 生成 V2bX 配置文件
   ${green}16.${plain} 放行 VPS 的所有网络端口
+  ${green}17.${plain} 退出脚本
  "
  #后续更新可加入上方字符串中
     show_status
-    echo && read -rp "请输入选择 [0-16]: " num
+    echo && read -rp "请输入选择 [0-17]: " num
 
     case "${num}" in
         0) config ;;
@@ -567,6 +930,7 @@ show_menu() {
         14) update_shell ;;
         15) generate_config_file ;;
         16) open_ports ;;
+        17) exit ;;
         *) echo -e "${red}请输入正确的数字 [0-16]${plain}" ;;
     esac
 }
