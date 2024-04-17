@@ -183,6 +183,7 @@ install_V2bX() {
     curl -o /usr/bin/V2bX -Ls https://raw.githubusercontent.com/winkxx/V2bX-v2board/master/V2bX.sh
     chmod +x /usr/bin/V2bX
     #if [ ! -L /usr/bin/v2bx ]; then
+    rm -rf /usr/bin/v2bx/V2bX
     ln -sf /usr/bin/V2bX /usr/bin/v2bx
     #fi
     cd $cur_dir
