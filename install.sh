@@ -209,7 +209,8 @@ install_V2bX() {
     echo "------------------------------------------"
     # 安装询问是否生成配置文件
     if [[ $first_install == true ]]; then
-        read -rp "自动直接生成配置文件？(y/n): " if_generate
+        if_generate=y #默认安装配置文件
+        #read -rp "自动直接生成配置文件？(y/n): " if_generate
         if [[ $if_generate == [Yy] ]]; then
             curl -o ./initconfig.sh -Ls https://raw.githubusercontent.com/winkxx/V2bX-v2board/master/initconfig.sh
             source initconfig.sh
