@@ -140,7 +140,7 @@ install_V2bX() {
     chmod +x V2bX
     mkdir /etc/V2bX/ -p
     rm /etc/systemd/system/V2bX.service -f
-    file="https://github.com/wyx2685/V2bX-script/raw/master/V2bX.service"
+    file="https://github.com/winkxx/V2bX-v2board/raw/master/V2bX.service"
     wget -q -N --no-check-certificate -O /etc/systemd/system/V2bX.service ${file}
     #cp -f V2bX.service /etc/systemd/system/
     systemctl daemon-reload
@@ -165,7 +165,7 @@ install_V2bX() {
         else
             echo -e "${red}V2bX 可能启动失败，请稍后使用 V2bX log 查看日志信息，若无法启动，则可能更改了配置格式，请前往 wiki 查看：https://github.com/V2bX-project/V2bX/wiki${plain}"
         fi
-        first_install=false
+        first_install=true
     fi
 
     if [[ ! -f /etc/V2bX/dns.json ]]; then
@@ -207,18 +207,14 @@ install_V2bX() {
     echo "V2bX uninstall    - 卸载 V2bX"
     echo "V2bX version      - 查看 V2bX 版本"
     echo "------------------------------------------"
-    # 首次安装询问是否生成配置文件
+    # 安装询问是否生成配置文件
     if [[ $first_install == true ]]; then
-        read -rp "检测到你为第一次安装V2bX,是否自动直接生成配置文件？(y/n): " if_generate
+        read -rp "自动直接生成配置文件？(y/n): " if_generate
         if [[ $if_generate == [Yy] ]]; then
             curl -o ./initconfig.sh -Ls https://raw.githubusercontent.com/winkxx/V2bX-v2board/master/initconfig.sh
             source initconfig.sh
             rm initconfig.sh -f
             generate_config_file
-            read -rp "是否安装bbr内核 ?(y/n): " if_install_bbr
-            if [[ $if_install_bbr == [Yy] ]]; then
-                install_bbr
-            fi
         fi
     fi
 }
