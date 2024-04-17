@@ -180,12 +180,12 @@ install_V2bX() {
     if [[ ! -f /etc/V2bX/custom_inbound.json ]]; then
         cp custom_inbound.json /etc/V2bX/
     fi
-    curl -o /usr/bin/V2bX -Ls https://raw.githubusercontent.com/winkxx/V2bX-v2board/master/V2bX.sh
+    curl -o /usr/bin/V2bX -Ls https://raw.githubusercontent.com/wyx2685/V2bX-script/master/V2bX.sh
     chmod +x /usr/bin/V2bX
-    #if [ ! -L /usr/bin/v2bx ]; then
-    rm -rf /usr/bin/v2bx/V2bX
-    ln -sf /usr/bin/V2bX /usr/bin/v2bx
-    #fi
+    if [ ! -L /usr/bin/v2bx ]; then
+        ln -s /usr/bin/V2bX /usr/bin/v2bx
+        chmod +x /usr/bin/v2bx
+    fi
     cd $cur_dir
     rm -f install.sh
     echo -e ""
