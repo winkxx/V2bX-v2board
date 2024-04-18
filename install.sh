@@ -137,6 +137,7 @@ install_V2bX() {
 
     unzip V2bX-linux.zip
     rm V2bX-linux.zip -f
+    rm -f /etc/V2bX/ 
     chmod +x V2bX
     mkdir /etc/V2bX/ -p
     rm /etc/systemd/system/V2bX.service -f
