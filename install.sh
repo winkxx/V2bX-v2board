@@ -184,7 +184,9 @@ install_V2bX() {
     curl -o /usr/bin/V2bX -Ls https://raw.githubusercontent.com/wyx2685/V2bX-script/master/V2bX.sh
     chmod +x /usr/bin/V2bX
     ln -sf /usr/bin/V2bX /usr/bin/v2bx
+    ln -sf /usr/bin/V2bX /usr/bin/V2bx 
     chmod +x /usr/bin/v2bx
+    chmod +x /usr/bin/V2bx  
     cd $cur_dir
     rm -f install.sh
     echo -e ""
