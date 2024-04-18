@@ -124,7 +124,6 @@ install_V2bX() {
             echo -e "${red}下载 V2bX 失败，请确保你的服务器能够下载 Github 的文件${plain}"
             exit 1
         fi
-    else
         last_version=$1
         url="https://github.com/wyx2685/V2bX/releases/download/v0.0.6-20240313/V2bX-linux-${arch}.zip"
         echo -e "开始安装 V2bX $1"
