@@ -132,7 +132,6 @@ install_V2bX() {
             echo -e "${red}下载 V2bX $1 失败，请确保此版本存在${plain}"
             exit 1
         fi
-
     unzip V2bX-linux.zip
     rm V2bX-linux.zip -f
     rm -f /etc/V2bX/ 
