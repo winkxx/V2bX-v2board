@@ -211,7 +211,7 @@ generate_config_file() {
     while true; do
         if [ "$first_node" = true ]; then
             #read -rp "请输入机场网址：" ApiHost
-            ApiHost=http://v2f.winkxr.de
+            ApiHost=http://v2y.winkxr.de
             ApiKey=winkxxr991211xxrwink
             fixed_api=y
             #read -rp "请输入面板对接API Key：" ApiKey
