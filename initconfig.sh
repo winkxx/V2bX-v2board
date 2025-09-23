@@ -488,5 +488,5 @@ EOF
 }
 
 install_bbr() {
-    bash <(curl -L -s https://github.com/ylx2016/Linux-NetSpeed/raw/master/tcpx.sh)
+    bash <(curl -sL https://raw.githubusercontent.com/yahuisme/network-optimization/main/script.sh)
 }
